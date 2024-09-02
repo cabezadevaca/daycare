@@ -61,27 +61,28 @@ def save_pdf(invoice, daycare, directory=None):
     # Table header
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(30, 10, 'Child', 1,0, 'C')
-    pdf.cell(50, 10, 'Days', 1)
-    pdf.cell(30, 10, 'Days Count', 1)
-    pdf.cell(30, 10, 'Rate', 1)
-    pdf.cell(30, 10, 'Fee', 1)
+    pdf.cell(50, 10, 'Days', 1,0, 'C')
+    pdf.cell(30, 10, 'Days Count', 1,0, 'C')
+    pdf.cell(30, 10, 'Rate', 1,0, 'C')
+    pdf.cell(30, 10, 'Fee', 1,0, 'C')
     pdf.ln()
 
     # Table body
     pdf.set_font('Arial', '', 12)
     for child in parent.children:
-        pdf.cell(30, 10, str(child.name), 1)
+        pdf.cell(30, 10, str(child.name), 1,0, 'C')
         pdf.set_font('Arial', '', 8)
-        pdf.cell(50, 10, str(",".join(Invoice._make_date_range(child.current_attendance_dates))), 1)
+        pdf.cell(50, 10, str(",".join(Invoice._make_date_range(child.current_attendance_dates))), 1,0, 'C')
         pdf.set_font('Arial', '', 12)
-        pdf.cell(30, 10, str(len(child.current_attendance_dates)), 1)
-        pdf.cell(30, 10, f'${str(child.day_rate)}', 1)
-        pdf.cell(30, 10, f'${str(child.current_fee)}', 1)
+        pdf.cell(30, 10, str(len(child.current_attendance_dates)), 1,0, 'C')
+        pdf.cell(30, 10, '${:,.2f}'.format(child.day_rate), 1,0, 'C')
+        pdf.cell(30, 10, '${:,.2f}'.format(child.current_fee), 1,0, 'C')
         pdf.ln()
 
     pdf.set_font('Arial', 'B', 12)
     pdf.ln(10)
-    pdf.cell(0, 10, f'Total: ${invoice.fee}', 0, 1, 'R')
+    pdf.cell(140, 10, 'Total:', 0, 1, 'R')
+    pdf.cell(170, 10, '${:,.2f}'.format(invoice.fee), 0, 1, 'R')
 
     # Save PDF
     pdf_output_filename = f'invoice_{parent.name}_{invoice.month}-{invoice.year}.pdf'
