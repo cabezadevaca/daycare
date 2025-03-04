@@ -30,11 +30,22 @@ class PublicHolidays:
 
         return month_holidays
 
+    def get_holidays_in_month_fromto(self, start_date, end_date):
+        month_holidays = set()
+        for holiday in self.holidays:
+            holiday_date = datetime.strptime(holiday, "%Y-%m-%d").date()
+            if start_date.date() <= holiday_date <= end_date.date():
+                month_holidays.add(holiday)
 
-def get_attendance_count(year, month, person_schedule, public_holidays_instance):
+        return month_holidays
+
+
+def get_attendance_count(year, month, person_schedule, public_holidays_instance, first_day=None, last_day=None):
     """
     Calculate the number of days a person attends in a given month.
 
+    :param last_day:
+    :param first_day:
     :param year: Year of interest (e.g., 2024)
     :param month: Month of interest (1 to 12)
     :param person_schedule: List of weekdays the person attends (0=Monday, 1=Tuesday, ..., 6=Sunday)
@@ -43,11 +54,19 @@ def get_attendance_count(year, month, person_schedule, public_holidays_instance)
     """
 
     # Define the first and last day of the month
-    first_day = datetime(year, month, 1)
-    last_day = datetime(year, month + 1, 1) - timedelta(days=1)
+    if first_day is  None or last_day is None:
+        first_day = datetime(year, month, 1)
+        if month == 12:
+            last_day = datetime(year+1, 1, 1) - timedelta(days=1)
+        else:
+            last_day = datetime(year, month + 1, 1) - timedelta(days=1)
+
+    else:
+        first_day = datetime.strptime(first_day, "%Y-%m-%d")
+        last_day = datetime.strptime(last_day, "%Y-%m-%d")
 
     # Get public holidays for the month
-    public_holidays = public_holidays_instance.get_holidays_in_month(year, month)
+    public_holidays = public_holidays_instance.get_holidays_in_month_fromto(first_day, last_day)
 
     # Initialize attendance count
     attendance_count = 0

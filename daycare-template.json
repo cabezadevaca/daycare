@@ -1,0 +1,13 @@
+{
+  "name": "<Daycare Name>",
+  "address": "<Street Address>",
+  "zip": "<zip>",
+  "phone":  "<your_phone>",
+  "ein": "<your_ein>",
+  "letterhead": "letterhead.png",
+  "email": "daycare@gmail.com",
+  "invoice_prefix": "Some text",
+  "sender_through": "gmail",
+  "sender_email": "<sender_email>@gmail.com",
+  "sender_password": "<password>"
+}

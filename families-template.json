@@ -1,0 +1,15 @@
+
+{
+  "families": [
+    {
+      "parents": [
+        {"name": "Mom", "email": "Mom@gmail.com"},
+        {"name": "Dad", "email": "Dad@gmail.com"}
+      ],
+      "kids": [
+        {"name": "Son", "dob": "2021-01-01" , "attendance": [0,1,2,3,4], "fee": 95},
+        {"name": "Daughter", "dob": "2021-01-01" , "attendance": [0,1,2,3,4], "fee": 85}
+      ]
+    }
+  ]
+}
