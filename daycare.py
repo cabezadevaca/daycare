@@ -74,7 +74,7 @@ def create_dirs(year, month, path):
 def month_to_str(year, month):
     return datetime(year, month, 1).strftime("%B")
 
-def  family_invoice(year, month, family, path, debug=False):
+def  family_invoice(year, month, family, path, debug_email):
     invoice = Invoice.generate_family_invoice(year, month, family, public_holidays)
 
     fname = save_family_pdf(invoice, daycare, path)
@@ -84,9 +84,10 @@ def  family_invoice(year, month, family, path, debug=False):
     month_str = month_to_str(year, month)
 
     for parent in family.parents:
-        if debug:
-            parent.email = "rrv2005@gmail.com"
+        if debug_email is not None:
+            parent.email = debug_email
         first, *last = parent.name.split()
+
 
         emailpdf.send_email_with_pdf(emailpdf.sender_email, passwd,
                                  parent.email, f'IClever Invoice for {month_str} {year}',
@@ -95,8 +96,6 @@ def  family_invoice(year, month, family, path, debug=False):
                                  f'\n\nThanks\nRegina',
                                  fname
                                  )
-
-
     return  invoice
 
 year = 2025
@@ -114,7 +113,8 @@ if __name__ == "__main__":
     df = pd.DataFrame()
     for family in fams:
         print(family.children)
-        invoice = family_invoice(year, month, family, _path, debug=True)
+        debug_email = daycare.email
+        invoice = family_invoice(year, month, family, _path, debug_email)
         df = invoice.add_to_df(df)
         print(f'Fam fee:{invoice.fee}')
         fee += invoice.fee
