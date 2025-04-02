@@ -2,7 +2,7 @@ import os.path
 from datetime import datetime
 from fpdf import FPDF
 from timetable import get_attendance_count
-
+import pandas as pd
 
 class PDF(FPDF):
 
@@ -23,8 +23,8 @@ class PDF(FPDF):
         self.cell(0, height, f'{self.daycare.name}', 0, 1, 'R')
         self.cell(0, height, f'{self.daycare.address}', 0, 1, 'R')
         self.cell(0, height, f'{self.daycare.town_state_zip}', 0, 1, 'R')
-        self.cell(0, height, f'Phone: f{self.daycare.phone}', 0, 1, 'R')
-        self.cell(0, height, f'EIN: f{self.daycare.ein}', 0, 1, 'R')
+        self.cell(0, height, f'Phone: {self.daycare.phone}', 0, 1, 'R')
+        self.cell(0, height, f'EIN: {self.daycare.ein}', 0, 1, 'R')
         self.ln(10)  # Add a line break
 
     def chapter_title(self, title):
@@ -93,6 +93,7 @@ def save_pdf(invoice, daycare, directory=None):
         pdf_output_filename = os.path.join(directory, pdf_output_filename)
     pdf.output(pdf_output_filename)
     return pdf_output_filename
+
 
 def save_family_pdf(invoice, daycare, directory=None):
     pdf = PDF(invoice.month, daycare)
@@ -224,4 +225,22 @@ class Invoice(object):
         Invoice._append_range(start, end, date_range)
 
         return date_range
+
+
+
+    def add_to_df(self, df):
+
+        fam = self.parent
+        for child in fam.children:
+            _df = pd.DataFrame([{
+                'parent': fam.parents,
+                'child': child,
+                'days': ";".join(Invoice._make_date_range(child.current_attendance_dates)),
+                'days count': len(child.current_attendance_dates),
+                'rate': child.day_rate,
+                'fee': child.current_fee}])
+
+            df = pd.concat([df, _df], ignore_index=True)
+        return df
+
 

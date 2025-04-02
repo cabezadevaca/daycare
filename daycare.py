@@ -2,6 +2,8 @@ import json
 import os
 from datetime import datetime
 
+import pandas as pd
+
 import emailpdf
 from actors import DayCare, Family, Parent, Child
 from invoice import Invoice, save_pdf, save_family_pdf
@@ -61,18 +63,25 @@ def load_families_from_config(config_file):
 
     return families
 
+def create_dirs(year, month, path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+    path = os.path.join(path, f'{month}-{year}')
+    if not os.path.exists(path):
+        os.mkdir(path)
+    return  path
+
+def month_to_str(year, month):
+    return datetime(year, month, 1).strftime("%B")
 
 def  family_invoice(year, month, family, path, debug=False):
     invoice = Invoice.generate_family_invoice(year, month, family, public_holidays)
 
-    if path is not None:
-        if not os.path.exists(path):
-            os.mkdir(path)
-        fname = save_family_pdf(invoice, daycare, path)
-        print(f'Saving PDF to: {os.path.basename(fname)}')
+    fname = save_family_pdf(invoice, daycare, path)
+    print(f'Saving PDF to: {os.path.basename(fname)}')
 
     passwd = emailpdf.sender_password
-    month_str = datetime(year, month, 1).strftime("%B")
+    month_str = month_to_str(year, month)
 
     for parent in family.parents:
         if debug:
@@ -91,18 +100,24 @@ def  family_invoice(year, month, family, path, debug=False):
     return  invoice
 
 year = 2025
-month = 3
+month = 4
 fee = 0
+_path = "../invoices"
 
 if __name__ == "__main__":
 
     daycare = DayCare.load_config("daycare.json")
     fams = load_families_from_config('families.json')
 
+    _path = create_dirs(year, month, _path)
+
+    df = pd.DataFrame()
     for family in fams:
         print(family.children)
-        invoice = family_invoice(year, month, family, "./", debug=False)
+        invoice = family_invoice(year, month, family, _path, debug=True)
+        df = invoice.add_to_df(df)
         print(f'Fam fee:{invoice.fee}')
         fee += invoice.fee
 
+    df.to_csv(os.path.join(_path, 'summary.csv'))
     print(f'Fee: {fee}')
