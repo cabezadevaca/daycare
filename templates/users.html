@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Users — Daycare Admin{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-person-lock me-2"></i>User Management</h2>
+</div>
+
+<!-- Add User Form -->
+<div class="card mb-4">
+    <div class="card-header"><strong>Add New User</strong></div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('user_add') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+            </div>
+            <div class="col-md-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <div class="col-md-2">
+                <label for="role" class="form-label">Role</label>
+                <select class="form-select" id="role" name="role">
+                    <option value="admin">Admin</option>
+                    <option value="parent" selected>Parent</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="family_id" class="form-label">Family</label>
+                <select class="form-select" id="family_id" name="family_id">
+                    <option value="">— None —</option>
+                    {% for fam in families %}
+                    <option value="{{ fam.id }}">
+                        #{{ fam.id }}
+                        {% if fam.parents %}
+                            — {{ fam.parents | map(attribute='name') | join(', ') }}
+                        {% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-person-plus me-1"></i> Add
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Family</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>
+                        <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+                    </td>
+                    <td>
+                        <span class="badge bg-{% if user.role == 'admin' %}warning text-dark{% else %}info{% endif %}">
+                            {{ user.role }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if user.family %}
+                            <a href="{{ url_for('family_detail', family_id=user.family.id) }}">
+                                #{{ user.family.id }}
+                                {% if user.family.parents %}
+                                    — {{ user.family.parents | map(attribute='name') | join(', ') }}
+                                {% endif %}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <form method="POST" action="{{ url_for('user_delete', user_id=user.id) }}"
+                              onsubmit="return confirm('Delete user {{ user.username }}?');"
+                              class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

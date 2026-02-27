@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Public Holidays — Daycare Admin{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Public Holidays</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHolidayModal"><i class="bi bi-plus-lg"></i> Add Holiday</button>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Date</th><th>Label</th><th></th></tr></thead>
+            <tbody>
+            {% for h in holidays %}
+            <tr>
+                <td>{{ h.date.strftime('%A, %b %d, %Y') }}</td>
+                <td>{{ h.label or '—' }}</td>
+                <td class="text-end">
+                    <form method="post" action="{{ url_for('holiday_delete', holiday_id=h.id) }}" class="d-inline" onsubmit="return confirm('Remove this holiday?')">
+                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-4">No public holidays configured.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Holiday Modal -->
+<div class="modal fade" id="addHolidayModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" action="{{ url_for('holiday_add') }}" class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Add Public Holiday</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Date</label>
+                    <input type="date" name="date" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Label (optional)</label>
+                    <input type="text" name="label" class="form-control" placeholder="e.g. Christmas Day">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

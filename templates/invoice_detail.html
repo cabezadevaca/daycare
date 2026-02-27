@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Invoice #{{ invoice.id }} — Daycare Admin{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('invoices_list') }}">Invoices</a></li>
+        <li class="breadcrumb-item active">Invoice #{{ invoice.id }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Invoice #{{ invoice.id }}</h4>
+    <div class="d-flex gap-2">
+        {% if invoice.pdf_path %}
+        <a href="{{ url_for('invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-outline-success"><i class="bi bi-download"></i> Download PDF</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('invoice_delete', invoice_id=invoice.id) }}" onsubmit="return confirm('Delete this invoice?')">
+            <button class="btn btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <h6 class="text-muted mb-3">Summary</h6>
+                <p><strong>Family:</strong> {{ invoice.family.parents|map(attribute='name')|join(', ') if invoice.family and invoice.family.parents else '—' }}</p>
+                <p><strong>Period:</strong> {{ invoice.month }}/{{ invoice.year }}</p>
+                <p><strong>Total Fee:</strong> ${{ "%.2f"|format(invoice.total_fee) }}</p>
+                <p><strong>Total Days:</strong> {{ invoice.total_days }}</p>
+                <p><strong>Generated:</strong> {{ invoice.generated_at.strftime('%b %d, %Y at %H:%M') }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white"><h6 class="mb-0">Line Items</h6></div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Child</th><th>Days</th><th>Attendance</th><th>Rate</th><th>Fee</th></tr></thead>
+                    <tbody>
+                    {% for item in invoice.line_items %}
+                    <tr>
+                        <td>{{ item.child.name if item.child else '—' }}</td>
+                        <td>{{ item.days_count }}</td>
+                        <td><small>{{ item.attendance_dates|join(', ') if item.attendance_dates else '—' }}</small></td>
+                        <td>${{ "%.2f"|format(item.day_rate) }}</td>
+                        <td>${{ "%.2f"|format(item.fee) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-3">No line items.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

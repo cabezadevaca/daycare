@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Family History — Daycare Admin{% endblock %}
+{% block content %}
+<h4 class="mb-4">Family History</h4>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('history') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Start Date</label>
+                <input type="date" name="start" class="form-control" value="{{ start }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">End Date</label>
+                <input type="date" name="end" class="form-control" value="{{ end }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Family</label>
+                <select name="family_id" class="form-select">
+                    <option value="">All Families</option>
+                    {% for fam in families %}
+                    <option value="{{ fam.id }}" {% if family_id == fam.id|string %}selected{% endif %}>
+                        #{{ fam.id }} — {{ fam.parents|map(attribute='name')|join(', ') if fam.parents else 'No parents' }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+                <a href="{{ url_for('history') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View toggle -->
+<div class="d-flex gap-2 mb-3">
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('history', start=start, end=end, family_id=family_id) }}"
+           class="btn btn-sm {% if show != 'attendance' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+            <i class="bi bi-clock-history"></i> Change Log
+        </a>
+        <a href="{{ url_for('history', start=start, end=end, family_id=family_id, show='attendance') }}"
+           class="btn btn-sm {% if show == 'attendance' %}btn-dark{% else %}btn-outline-dark{% endif %}">
+            <i class="bi bi-calendar-check"></i> Attendance &amp; Rates
+        </a>
+    </div>
+</div>
+
+<!-- Quick month navigation -->
+<div class="d-flex gap-2 mb-3">
+    <a href="{{ url_for('history', start=prev_month_start, end=prev_month_end, family_id=family_id) }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-chevron-left"></i> Prev Month
+    </a>
+    <a href="{{ url_for('history') }}" class="btn btn-sm btn-outline-secondary">This Month</a>
+    <a href="{{ url_for('history', start=next_month_start, end=next_month_end, family_id=family_id) }}" class="btn btn-sm btn-outline-secondary">
+        Next Month <i class="bi bi-chevron-right"></i>
+    </a>
+</div>
+
+{% if show == 'attendance' %}
+<!-- Attendance & Rates -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white">
+        <h6 class="mb-0"><i class="bi bi-calendar-check text-success"></i> Attendance &amp; Rates</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Family</th>
+                    <th>Period</th>
+                    <th>Child</th>
+                    <th>Schedule</th>
+                    <th>Rate</th>
+                    <th>Days</th>
+                    <th>Attendance Dates</th>
+                    <th>Fee</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in attendance_data %}
+            <tr>
+                <td><a href="{{ url_for('family_detail', family_id=row.family_id) }}">{{ row.family }}</a></td>
+                <td>{{ row.period }}</td>
+                <td>{{ row.child }}</td>
+                <td><small>{{ row.schedule }}</small></td>
+                <td>${{ "%.2f"|format(row.rate) }}</td>
+                <td>{{ row.days_count }}</td>
+                <td><small>{{ row.attendance }}</small></td>
+                <td class="fw-semibold">${{ "%.2f"|format(row.fee) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-center text-muted py-4">No attendance data found for this date range. Make sure invoices have been generated.</td></tr>
+            {% endfor %}
+            </tbody>
+            {% if attendance_data %}
+            <tfoot>
+                <tr class="table-light">
+                    <td colspan="5" class="text-end fw-semibold">Totals:</td>
+                    <td class="fw-semibold">{{ attendance_data|sum(attribute='days_count') }}</td>
+                    <td></td>
+                    <td class="fw-semibold">${{ "%.2f"|format(attendance_data|sum(attribute='fee')) }}</td>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>
+
+{% else %}
+<!-- Change Log -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">{{ events|length }} event{{ 's' if events|length != 1 else '' }} found</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th style="width:160px">Time</th>
+                    <th style="width:80px">Type</th>
+                    <th style="width:90px">Operation</th>
+                    <th style="width:80px">Family</th>
+                    <th>Details</th>
+                    <th style="width:120px">Change ID</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for ev in events %}
+            <tr>
+                <td><small>{{ ev.time.strftime('%Y-%m-%d %H:%M:%S') }}</small></td>
+                <td>
+                    {% if ev.type == 'Family' %}
+                        <span class="badge bg-primary bg-opacity-10 text-primary">Family</span>
+                    {% elif ev.type == 'Parent' %}
+                        <span class="badge bg-info bg-opacity-10 text-info">Parent</span>
+                    {% else %}
+                        <span class="badge bg-success bg-opacity-10 text-success">Child</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if ev.operation == 'insert' %}
+                        <span class="badge bg-success">insert</span>
+                    {% elif ev.operation == 'update' %}
+                        <span class="badge bg-warning text-dark">update</span>
+                    {% elif ev.operation == 'delete' %}
+                        <span class="badge bg-danger">delete</span>
+                    {% elif ev.operation == 'snapshot' %}
+                        <span class="badge bg-secondary">snapshot</span>
+                    {% else %}
+                        <span class="badge bg-dark">{{ ev.operation }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('family_detail', family_id=ev.family_id) }}">#{{ ev.family_id }}</a>
+                </td>
+                <td>{{ ev.detail }}</td>
+                <td><small class="text-muted" title="{{ ev.change_id }}">{{ ev.change_id[:8] }}…</small></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-muted py-4">No history events in this date range.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

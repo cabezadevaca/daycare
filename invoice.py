@@ -13,7 +13,8 @@ class PDF(FPDF):
 
 
     def header(self):
-        self.image(f'{self.daycare.logo}', 0, 0, self.w, self.h)
+        if self.daycare.logo and os.path.isfile(self.daycare.logo):
+            self.image(f'{self.daycare.logo}', 0, 0, self.w, self.h)
 
         self.set_font('Arial', 'B', 12)
         self.cell(0, 10, f'{self.daycare.name} Invoice', 0, 1, 'C')
@@ -227,6 +228,36 @@ class Invoice(object):
         return date_range
 
 
+
+    def save_to_db(self, session, pdf_path=None):
+        """Persist this invoice and its line items to the database."""
+        from database import InvoiceDB, InvoiceLineItemDB
+
+        fam = self.parent
+        inv = InvoiceDB(
+            family_id=fam.id,
+            year=self.year,
+            month=self.month,
+            total_fee=self.fee,
+            total_days=self.days_count,
+            pdf_path=pdf_path,
+        )
+        session.add(inv)
+        session.flush()
+
+        for child in fam.children:
+            item = InvoiceLineItemDB(
+                invoice_id=inv.id,
+                child_id=child.id,
+                days_count=len(child.current_attendance_dates),
+                attendance_dates=list(child.current_attendance_dates),
+                day_rate=child.day_rate,
+                fee=child.current_fee,
+            )
+            session.add(item)
+
+        session.flush()
+        return inv
 
     def add_to_df(self, df):
 
