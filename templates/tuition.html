@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Tuition Overview — Daycare Admin{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">Tuition Overview</h4>
+</div>
+
+<!-- Family filter (admin only) -->
+{% if current_user.is_admin %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <label class="col-form-label fw-semibold">Filter by family:</label>
+            </div>
+            <div class="col-auto">
+                <select name="family_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All families</option>
+                    {% for fam in families %}
+                    <option value="{{ fam.id }}" {% if family_id|string == fam.id|string %}selected{% endif %}>
+                        {{ fam.parents|map(attribute='name')|join(', ') if fam.parents else 'Family #' ~ fam.id }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% for key, data in months.items() %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center cursor-pointer"
+         data-bs-toggle="collapse" data-bs-target="#month-{{ data.year }}-{{ data.month }}" role="button">
+        <h5 class="mb-0">{{ data.month_name }} {{ data.year }}</h5>
+        <span class="badge bg-primary fs-6">${{ "%.2f"|format(data.total) }}</span>
+    </div>
+    <div id="month-{{ data.year }}-{{ data.month }}" class="collapse show">
+        <div class="card-body p-0">
+            {% for fam_id, fam in data.families.items() %}
+            <div class="border-bottom">
+                <div class="px-3 py-2 bg-light d-flex justify-content-between align-items-center cursor-pointer"
+                     data-bs-toggle="collapse" data-bs-target="#fam-{{ data.year }}-{{ data.month }}-{{ fam_id }}" role="button">
+                    <div>
+                        <i class="bi bi-chevron-down me-1 text-muted"></i>
+                        <a href="{{ url_for('family_detail', family_id=fam.family_id) }}" class="text-decoration-none fw-semibold"
+                           onclick="event.stopPropagation()">{{ fam.label }}</a>
+                    </div>
+                    <span class="badge bg-secondary">${{ "%.2f"|format(fam.total) }}</span>
+                </div>
+                <div id="fam-{{ data.year }}-{{ data.month }}-{{ fam_id }}" class="collapse">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th class="ps-4">Child</th><th>Days</th><th>Rate</th><th>Fee</th></tr>
+                        </thead>
+                        <tbody>
+                        {% for child in fam.children %}
+                            <tr>
+                                <td class="ps-4">{{ child.name }}</td>
+                                <td>{{ child.days }}</td>
+                                <td>${{ "%.2f"|format(child.rate) }}</td>
+                                <td>${{ "%.2f"|format(child.fee) }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+    <i class="bi bi-journal-x fs-1 d-block mb-2"></i>
+    No tuition data found.
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<style>
+    [data-bs-toggle="collapse"] { cursor: pointer; }
+    [data-bs-toggle="collapse"]:hover { background-color: rgba(0,0,0,.03) !important; }
+</style>
+{% endblock %}

@@ -106,6 +106,11 @@
         </li>
         {% endif %}
         <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'tuition_overview' %}active{% endif %}" href="{{ url_for('tuition_overview') }}">
+                <i class="bi bi-cash-stack"></i> Tuition
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link {% if request.endpoint in ('invoices_list','invoice_detail','invoice_generate') %}active{% endif %}" href="{{ url_for('invoices_list') }}">
                 <i class="bi bi-receipt"></i> Invoices
             </a>

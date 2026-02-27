@@ -6,6 +6,7 @@ Served over HTTPS with a self-signed certificate.
 import os
 import ssl
 import calendar
+from collections import OrderedDict
 from functools import wraps
 from datetime import datetime, date
 
@@ -418,8 +419,15 @@ def child_delete(child_id):
 @admin_required
 def holidays_list():
     session = get_session()
-    holidays = session.query(PublicHolidayDB).order_by(PublicHolidayDB.date).all()
-    return render_template("holidays.html", holidays=holidays)
+    all_holidays = session.query(PublicHolidayDB).order_by(PublicHolidayDB.date).all()
+    available_years = sorted({h.date.year for h in all_holidays})
+    year = request.args.get("year", "")
+    if year:
+        holidays = [h for h in all_holidays if h.date.year == int(year)]
+    else:
+        holidays = all_holidays
+    return render_template("holidays.html", holidays=holidays,
+                           available_years=available_years, selected_year=year)
 
 
 @app.route("/holidays/add", methods=["POST"])
@@ -440,7 +448,7 @@ def holiday_add():
     session.add(holiday)
     session.commit()
     flash("Holiday added.", "success")
-    return redirect(url_for("holidays_list"))
+    return redirect(url_for("holidays_list", year=d.year))
 
 
 @app.route("/holidays/<int:holiday_id>/delete", methods=["POST"])
@@ -452,7 +460,7 @@ def holiday_delete(holiday_id):
         session.delete(holiday)
         session.commit()
         flash("Holiday deleted.", "success")
-    return redirect(url_for("holidays_list"))
+    return redirect(url_for("holidays_list", year=request.args.get("year", "")))
 
 
 # ---------------------------------------------------------------------------
@@ -605,6 +613,65 @@ def history():
         prev_month_end=prev_end.isoformat(),
         next_month_start=next_start.isoformat(),
         next_month_end=next_end.isoformat(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Tuition Overview
+# ---------------------------------------------------------------------------
+
+@app.route("/tuition")
+@login_required
+def tuition_overview():
+    session = get_session()
+    families = session.query(FamilyDB).options(joinedload(FamilyDB.parents)).all()
+
+    # Optional family filter
+    family_id = request.args.get("family_id", "")
+
+    # Build invoice query
+    q = session.query(InvoiceDB).options(
+        joinedload(InvoiceDB.family).joinedload(FamilyDB.parents),
+        joinedload(InvoiceDB.line_items).joinedload(InvoiceLineItemDB.child),
+    )
+    if not current_user.is_admin:
+        q = q.filter(InvoiceDB.family_id == current_user.family_id)
+    elif family_id:
+        q = q.filter(InvoiceDB.family_id == int(family_id))
+
+    invoices = q.order_by(InvoiceDB.year.desc(), InvoiceDB.month.desc()).all()
+
+    # Group by (year, month)
+    months = OrderedDict()  # key: (year, month) -> { total, families: { fam_id: { label, total, children } } }
+    for inv in invoices:
+        key = (inv.year, inv.month)
+        if key not in months:
+            months[key] = {"year": inv.year, "month": inv.month,
+                           "month_name": calendar.month_abbr[inv.month],
+                           "total": 0.0, "families": OrderedDict()}
+        months[key]["total"] += inv.total_fee
+
+        fam_label = (", ".join(p.name for p in inv.family.parents)
+                     if inv.family and inv.family.parents
+                     else f"Family #{inv.family_id}")
+        fam_entry = months[key]["families"].setdefault(inv.family_id, {
+            "label": fam_label, "family_id": inv.family_id,
+            "total": 0.0, "children": [],
+        })
+        fam_entry["total"] += inv.total_fee
+        for item in inv.line_items:
+            fam_entry["children"].append({
+                "name": item.child.name if item.child else f"Child #{item.child_id}",
+                "days": item.days_count,
+                "rate": item.day_rate,
+                "fee": item.fee,
+            })
+
+    return render_template(
+        "tuition.html",
+        months=months,
+        families=families,
+        family_id=family_id,
     )
 
 

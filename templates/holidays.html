@@ -6,6 +6,24 @@
     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHolidayModal"><i class="bi bi-plus-lg"></i> Add Holiday</button>
 </div>
 
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <label class="col-form-label fw-semibold">Year:</label>
+            </div>
+            <div class="col-auto">
+                <select name="year" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">All years</option>
+                    {% for y in available_years %}
+                    <option value="{{ y|int }}" {% if selected_year|string == y|int|string %}selected{% endif %}>{{ y|int }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
@@ -16,7 +34,7 @@
                 <td>{{ h.date.strftime('%A, %b %d, %Y') }}</td>
                 <td>{{ h.label or '—' }}</td>
                 <td class="text-end">
-                    <form method="post" action="{{ url_for('holiday_delete', holiday_id=h.id) }}" class="d-inline" onsubmit="return confirm('Remove this holiday?')">
+                    <form method="post" action="{{ url_for('holiday_delete', holiday_id=h.id, year=selected_year) }}" class="d-inline" onsubmit="return confirm('Remove this holiday?')">
                         <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                     </form>
                 </td>
