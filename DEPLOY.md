@@ -2,20 +2,32 @@
 
 ## Prerequisites
 
-- **Python 3.6+** (3.8+ recommended)
+- **Python 3.6+** (3.8+ recommended) — auto-installed by the deploy scripts if not found
 - **OpenSSL** (optional, for HTTPS — the app falls back to HTTP if certs are missing)
 
 ---
 
 ## Quick Deploy
 
-### Linux / macOS
+### Linux
 
 ```bash
 chmod +x deploy.sh start.sh
 ./deploy.sh
 ./start.sh
 ```
+
+> Python 3 will be auto-installed via `apt`, `dnf`, `pacman`, or `zypper` if not found.
+
+### macOS
+
+```bash
+chmod +x deploy-mac.sh start.sh
+./deploy-mac.sh
+./start.sh
+```
+
+> Homebrew and Python 3 will be auto-installed if not found.
 
 ### Windows (Command Prompt)
 
@@ -66,7 +78,7 @@ daycare/
 ├── manage_users.py
 ├── migrate_to_sqlite.py
 ├── requirements.txt
-├── deploy.sh / deploy.bat / deploy.ps1
+├── deploy.sh / deploy-mac.sh / deploy.bat / deploy.ps1
 ├── start.sh / start.bat
 ├── certs/              (optional — will be regenerated)
 ├── static/
@@ -75,7 +87,7 @@ daycare/
 └── invoices/           (include to keep generated PDFs)
 ```
 
-Then run `deploy.sh` (Linux/macOS) or `deploy.bat` (Windows).
+Then run `deploy.sh` (Linux), `deploy-mac.sh` (macOS), or `deploy.bat` (Windows).
 
 ### Option B: Copy with existing data
 

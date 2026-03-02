@@ -49,6 +49,27 @@
                 {% endfor %}
             </div>
 
+            <hr>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail"
+                       {% if not daycare or not daycare.sender_email or not daycare.sender_password %}disabled{% endif %}>
+                <label class="form-check-label" for="sendEmail">
+                    <i class="bi bi-envelope"></i> Send invoices to parents via email
+                </label>
+                {% if not daycare or not daycare.sender_email or not daycare.sender_password %}
+                <div class="form-text text-warning">
+                    <i class="bi bi-exclamation-triangle"></i> Sender email not configured. Set it in <a href="{{ url_for('settings') }}">Settings</a>.
+                </div>
+                {% endif %}
+            </div>
+            <div class="ms-4 mb-3" id="debugEmailGroup" style="display:none;">
+                <label class="form-label text-muted" for="debugEmail">
+                    <i class="bi bi-bug"></i> Debug: override recipient email (leave blank to send to actual parents)
+                </label>
+                <input type="email" class="form-control form-control-sm" name="debug_email" id="debugEmail"
+                       placeholder="e.g. test@example.com" style="max-width:350px;">
+            </div>
+
             <button type="submit" class="btn btn-primary"><i class="bi bi-receipt"></i> Generate</button>
         </form>
     </div>
@@ -59,6 +80,10 @@
 <script>
 document.getElementById('selectAll').addEventListener('change', function() {
     document.querySelectorAll('.family-check').forEach(cb => cb.checked = this.checked);
+});
+document.getElementById('sendEmail').addEventListener('change', function() {
+    document.getElementById('debugEmailGroup').style.display = this.checked ? 'block' : 'none';
+    if (!this.checked) document.getElementById('debugEmail').value = '';
 });
 </script>
 {% endblock %}

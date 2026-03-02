@@ -28,6 +28,7 @@ from database import (
     UserDB,
 )
 from invoice import Invoice, save_family_pdf
+import emailpdf
 from timetable import PublicHolidays
 
 app = Flask(__name__)
@@ -707,6 +708,8 @@ def invoice_generate():
         year = int(request.form.get("year", datetime.now().year))
         month = int(request.form.get("month", datetime.now().month))
         family_ids = request.form.getlist("family_ids")
+        send_email = request.form.get("send_email") == "on"
+        debug_email = request.form.get("debug_email", "").strip()
         public_holidays = load_public_holidays(session)
 
         invoices_dir = os.path.join(
@@ -714,9 +717,15 @@ def invoice_generate():
         )
         os.makedirs(invoices_dir, exist_ok=True)
 
+        month_str = datetime(year, month, 1).strftime("%B")
         generated = 0
+        sent = 0
+        send_errors = []
         for fid in family_ids:
-            fam = session.query(FamilyDB).get(int(fid))
+            fam = session.query(FamilyDB).options(
+                joinedload(FamilyDB.parents),
+                joinedload(FamilyDB.children),
+            ).get(int(fid))
             if not fam or not fam.children:
                 continue
             invoice = Invoice.generate_family_invoice(year, month, fam, public_holidays)
@@ -724,13 +733,49 @@ def invoice_generate():
             invoice.save_to_db(session, pdf_path=pdf_path)
             generated += 1
 
+            if send_email and daycare.sender_email and daycare.sender_password:
+                for parent in fam.parents:
+                    recipient = debug_email if debug_email else parent.email
+                    if not recipient:
+                        continue
+                    first, *_ = parent.name.split()
+                    subject = f"{daycare.name or 'Daycare'} Invoice for {month_str} {year}"
+                    body = (
+                        f"Dear {first}, please find attached the {month_str} {year} invoice."
+                        f"\n\nThank you,\n{daycare.name or 'Daycare'}"
+                    )
+                    try:
+                        emailpdf.send_email_with_pdf(
+                            daycare.sender_email,
+                            daycare.sender_password,
+                            recipient,
+                            subject,
+                            body,
+                            pdf_path,
+                        )
+                        sent += 1
+                    except Exception as e:
+                        send_errors.append(f"{parent.name}: {e}")
+
         session.commit()
-        flash(f"Generated {generated} invoice(s) for {month}/{year}.", "success")
+        msg = f"Generated {generated} invoice(s) for {month}/{year}."
+        if send_email:
+            msg += f" Sent to {sent} parent(s)."
+            if send_errors:
+                msg += f" {len(send_errors)} send error(s)."
+                flash(msg, "warning")
+                for err in send_errors:
+                    flash(f"Email error — {err}", "danger")
+            else:
+                flash(msg, "success")
+        else:
+            flash(msg, "success")
         return redirect(url_for("invoices_list"))
 
     return render_template(
         "invoice_generate.html",
         families=families,
+        daycare=daycare,
         current_year=datetime.now().year,
         current_month=datetime.now().month,
     )

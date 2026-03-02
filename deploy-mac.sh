@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Daycare App — Linux/macOS Deployment Script
+# Daycare App — macOS Deployment Script
 # =============================================================================
 # This script:
-#   1. Checks for Python 3
+#   1. Checks for Homebrew and Python 3
 #   2. Creates a virtual environment
 #   3. Installs dependencies
 #   4. Generates self-signed SSL certificates (if missing)
@@ -27,58 +27,63 @@ info()  { echo -e "${GREEN}[INFO]${NC}  $*"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 error() { echo -e "${RED}[ERROR]${NC} $*"; }
 
-# ---- 1. Check / Install Python 3 ----
+# ---- 1. Check for Homebrew ----
+if ! command -v brew &>/dev/null; then
+    warn "Homebrew not found. Installing Homebrew first..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    # Add Homebrew to PATH for Apple Silicon Macs
+    if [ -f /opt/homebrew/bin/brew ]; then
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [ -f /usr/local/bin/brew ]; then
+        eval "$(/usr/local/bin/brew shellenv)"
+    fi
+    if ! command -v brew &>/dev/null; then
+        error "Homebrew installation failed. Install manually from https://brew.sh"
+        exit 1
+    fi
+    info "Homebrew installed."
+else
+    info "Homebrew found."
+fi
+
+# ---- 2. Check / Install Python 3 ----
 info "Checking for Python 3..."
 PYTHON=""
 
-find_python() {
+for cmd in python3 python; do
+    if command -v "$cmd" &>/dev/null; then
+        version=$("$cmd" --version 2>&1 | sed -n 's/Python \([0-9]*\)\.\([0-9]*\).*/\1/p')
+        if [ "$version" -ge 3 ] 2>/dev/null; then
+            PYTHON="$cmd"
+            break
+        fi
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    warn "Python 3 not found. Installing via Homebrew..."
+    brew install python3
+    # Re-check after install
     for cmd in python3 python; do
         if command -v "$cmd" &>/dev/null; then
-            major=$("$cmd" --version 2>&1 | sed -n 's/Python \([0-9]*\).*/\1/p')
-            if [ "$major" -ge 3 ] 2>/dev/null; then
-                echo "$cmd"
-                return 0
+            version=$("$cmd" --version 2>&1 | sed -n 's/Python \([0-9]*\)\.\([0-9]*\).*/\1/p')
+            if [ "$version" -ge 3 ] 2>/dev/null; then
+                PYTHON="$cmd"
+                break
             fi
         fi
     done
-    return 1
-}
-
-PYTHON=$(find_python) || true
-
-if [ -z "$PYTHON" ]; then
-    warn "Python 3 not found. Attempting to install..."
-    if command -v apt-get &>/dev/null; then
-        info "Detected Debian/Ubuntu — installing python3, python3-venv, python3-pip..."
-        sudo apt-get update -qq
-        sudo apt-get install -y python3 python3-venv python3-pip
-    elif command -v dnf &>/dev/null; then
-        info "Detected Fedora/RHEL — installing python3..."
-        sudo dnf install -y python3 python3-pip
-    elif command -v pacman &>/dev/null; then
-        info "Detected Arch Linux — installing python..."
-        sudo pacman -Sy --noconfirm python python-pip
-    elif command -v zypper &>/dev/null; then
-        info "Detected openSUSE — installing python3..."
-        sudo zypper install -y python3 python3-pip
-    else
-        error "Python 3 is required but not found, and no supported package manager detected."
-        echo "  Install Python 3 manually with your package manager, e.g.:"
-        echo "    Ubuntu/Debian: sudo apt install python3 python3-venv python3-pip"
-        echo "    Fedora/RHEL:   sudo dnf install python3"
-        echo "    Arch:          sudo pacman -S python"
-        exit 1
-    fi
-    # Re-check after install
-    PYTHON=$(find_python) || true
     if [ -z "$PYTHON" ]; then
-        error "Python 3 installation failed. Please install it manually."
+        error "Python 3 installation failed."
+        echo "  Try installing manually:"
+        echo "    brew install python3"
+        echo "  Or download from https://www.python.org/downloads/"
         exit 1
     fi
 fi
 info "Found Python: $($PYTHON --version)"
 
-# ---- 2. Create virtual environment ----
+# ---- 3. Create virtual environment ----
 VENV_DIR="$SCRIPT_DIR/venv"
 if [ ! -d "$VENV_DIR" ]; then
     info "Creating virtual environment in ./venv ..."
@@ -91,13 +96,13 @@ fi
 source "$VENV_DIR/bin/activate"
 info "Virtual environment activated."
 
-# ---- 3. Install dependencies ----
+# ---- 4. Install dependencies ----
 info "Installing Python dependencies..."
 pip install --upgrade pip --quiet
 pip install -r requirements.txt --quiet
 info "Dependencies installed."
 
-# ---- 4. Generate SSL certificates (if missing) ----
+# ---- 5. Generate SSL certificates (if missing) ----
 CERT_DIR="$SCRIPT_DIR/certs"
 CERTFILE="$CERT_DIR/cert.pem"
 KEYFILE="$CERT_DIR/key.pem"
@@ -106,26 +111,47 @@ if [ ! -f "$CERTFILE" ] || [ ! -f "$KEYFILE" ]; then
     info "Generating self-signed SSL certificates..."
     mkdir -p "$CERT_DIR"
     if command -v openssl &>/dev/null; then
+        # macOS LibreSSL may not support -addext; use a config file instead
+        TMPCONF=$(mktemp /tmp/openssl-daycare.XXXXXX.cnf)
+        cat > "$TMPCONF" <<EOF
+[req]
+default_bits       = 2048
+prompt             = no
+default_md         = sha256
+distinguished_name = dn
+x509_extensions    = v3_ext
+
+[dn]
+C  = US
+ST = Local
+L  = Local
+O  = Daycare
+CN = localhost
+
+[v3_ext]
+subjectAltName = DNS:localhost,IP:127.0.0.1
+EOF
         openssl req -x509 -newkey rsa:2048 \
             -keyout "$KEYFILE" -out "$CERTFILE" \
             -days 365 -nodes \
-            -subj "/C=US/ST=Local/L=Local/O=Daycare/CN=localhost" \
-            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" 2>/dev/null
+            -config "$TMPCONF" 2>/dev/null
+        rm -f "$TMPCONF"
         info "SSL certificates generated in ./certs/"
     else
         warn "openssl not found — skipping certificate generation."
-        warn "The app will fall back to HTTP. Install openssl to enable HTTPS."
+        warn "  Install with: brew install openssl"
+        warn "  The app will fall back to HTTP."
     fi
 else
     info "SSL certificates already exist."
 fi
 
-# ---- 5. Initialize database ----
+# ---- 6. Initialize database ----
 info "Initializing database (creating tables if needed)..."
 python -c "from database import init_db; init_db()"
 info "Database ready (daycare.db)."
 
-# ---- 6. Seed admin user ----
+# ---- 7. Seed admin user ----
 info "Checking for admin user..."
 ADMIN_EXISTS=$(python -c "
 from database import init_db, UserDB
@@ -151,7 +177,7 @@ else
     info "Admin user already exists — skipping."
 fi
 
-# ---- 7. Create invoices directory ----
+# ---- 8. Create invoices directory ----
 mkdir -p "$SCRIPT_DIR/invoices"
 
 # ---- Done ----
